@@ -63,6 +63,7 @@ def run_subprocess(runcmd=None, rundir=None, runlog=None, begdir=None, ignore_er
         os.chdir (rundir)
         os.environ['PWD'] = rundir
         #rundir = '.'
+
     runbuf = []
     p = subprocess.Popen(runcmd, \
                          cwd = rundir, \
@@ -107,35 +108,39 @@ def parse_command_line(argv):
 
     # paths
     if len(argv) < 3:
-        print ("Usage: "+argv[0]+" <module_config> <sdk_login_config> [basepath]")
+        print ("Usage: "+argv[0]+" <module_config_file> <sdk_token_config_file> [base_run_path]")
         sys.exit(-1)
     prog = re.sub ('^.*/', '', argv[0])
+    src_path = argv[0].replace(prog,'')
+    if src_path == argv[0]:
+        src_path = './'
     module_config_file = argv[1]
-    sdk_login_config_file = argv[2]
+    sdk_token_config_file = argv[2]
     if len(argv) > 3:
-        base_path = argv[3]
+        run_dir = argv[3]
     else:
-        base_path = '.'
-    if base_path.startswith('.'):
-        base_path = os.path.join(os.getcwd(), base_path)
-        base_path = re.sub ('^/mnt/.*/homes/'+os.environ['USER'], os.environ['HOME'], base_path)
+        run_dir = '.'
+    if run_dir.startswith('.'):
+        run_dir = os.path.join(os.getcwd(), run_dir)
+        run_dir = re.sub ('^/mnt/.*/homes/'+os.environ['USER'], os.environ['HOME'], run_dir)
 
     params['program_name'] = prog
     params['module_config_file'] = module_config_file
-    params['sdk_login_config_file'] = sdk_login_config_file
-    params['base_path'] = base_path
+    params['sdk_token_config_file'] = sdk_token_config_file
+    params['run_dir'] = run_dir
+    params['src_path'] = src_path
     
     return params
 
 
 # get_paths()
-def get_paths (base_path):
+def get_paths (src_path, run_dir):
 
     paths = dict()
     overall_run_timestamp = now_ISO()
-    logs_dir    = os.path.join (base_path, 'logs', overall_run_timestamp)
-    reports_dir = os.path.join (base_path, 'reports')
-    module_exec_dir = os.path.join (base_path, 'module_exec', overall_run_timestamp)
+    logs_dir    = os.path.join (run_dir, 'logs', overall_run_timestamp)
+    reports_dir = os.path.join (run_dir, 'reports')
+    module_exec_dir = os.path.join (run_dir, 'module_exec', overall_run_timestamp)
     if not os.path.exists(logs_dir):
         mkdirs_fullpath(logs_dir)    
     if not os.path.exists(reports_dir):
@@ -143,7 +148,7 @@ def get_paths (base_path):
     if not os.path.exists(module_exec_dir):
         mkdirs_fullpath(module_exec_dir)    
 
-    template_path = os.path.join(base_path,'templates')
+    template_path = os.path.join(src_path,'templates')
     template_name = 'test_local'
         
     paths['overall_run_timestamp'] = overall_run_timestamp
@@ -361,11 +366,12 @@ def main(argv):
     params = parse_command_line (argv)
     prog                  = params['program_name']
     module_config_file    = params['module_config_file']
-    sdk_login_config_file = params['sdk_login_config_file']
-    base_path             = params['base_path']
+    sdk_token_config_file = params['sdk_token_config_file']
+    run_dir               = params['run_dir']
+    src_path              = params['src_path']
     
     # output dirs
-    paths = get_paths (base_path)
+    paths = get_paths (src_path, run_dir)
     overall_run_timestamp = paths['overall_run_timestamp']
     logs_dir              = paths['logs_dir']
     reports_dir           = paths['reports_dir']
@@ -409,7 +415,7 @@ def main(argv):
         # copy test_local template to module
         stage = 'COPY TEMPLATE'
         chirp (stage+' '+module_name+" from "+module_repos[mod_i], prog=prog)
-        install_test_local_template (sdk_login_config_file, module_name, template_path, template_name, test_dir)
+        install_test_local_template (sdk_token_config_file, module_name, template_path, template_name, test_dir)
 
         """
         # DEBUG: replace test command with debug copy
